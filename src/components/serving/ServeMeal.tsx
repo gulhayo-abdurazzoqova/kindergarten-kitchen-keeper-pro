@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,10 +20,11 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { useKitchenStore } from '@/store';
 import { calculatePossiblePortions } from '@/utils/calculations';
+import { toast } from '@/components/ui/sonner';
 
 const ServeMeal: React.FC = () => {
   const { meals, ingredients, serveMeal } = useKitchenStore();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const [selectedMealId, setSelectedMealId] = useState<string>('');
   const [portions, setPortions] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,7 +37,7 @@ const ServeMeal: React.FC = () => {
     ? calculatePossiblePortions(selectedMeal, ingredients)
     : 0;
 
-  const handleServeMeal = () => {
+  const handleServeMeal = async () => {
     if (!selectedMealId) {
       toast({
         title: 'Error',
@@ -57,23 +57,32 @@ const ServeMeal: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const result = serveMeal(selectedMealId, portions);
-    setIsSubmitting(false);
-
-    if (result.success) {
-      toast({
-        title: 'Success',
-        description: result.message
-      });
-      // Reset form after successful serving
-      setSelectedMealId('');
-      setPortions(1);
-    } else {
+    try {
+      const result = await serveMeal(selectedMealId, portions);
+      
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: result.message
+        });
+        // Reset form after successful serving
+        setSelectedMealId('');
+        setPortions(1);
+      } else {
+        toast({
+          title: 'Error',
+          description: result.message,
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
       toast({
         title: 'Error',
-        description: result.message,
+        description: error instanceof Error ? error.message : 'Failed to serve meal',
         variant: 'destructive'
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

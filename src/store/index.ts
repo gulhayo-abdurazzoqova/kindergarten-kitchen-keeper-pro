@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { 
   Ingredient, 
@@ -214,18 +213,26 @@ export const useKitchenStore = create<KitchenState>((set, get) => ({
         userId: get().currentUser?.id || 'unknown'
       });
       
+      // Refresh ingredients after serving
+      await get().fetchIngredients();
+      
       if (response.success) {
-        // Refresh ingredients after serving
-        await get().fetchIngredients();
-        toast.success(response.message || 'Meal served successfully');
-        return { success: true, message: response.message || 'Meal served successfully' };
+        return { 
+          success: true, 
+          message: response.message || 'Meal served successfully' 
+        };
       }
       
-      return { success: false, message: 'Failed to serve meal' };
+      return { 
+        success: false, 
+        message: response.message || 'Failed to serve meal' 
+      };
     } catch (error) {
       console.error('Failed to serve meal:', error);
-      toast.error(error.message || 'Failed to serve meal');
-      return { success: false, message: error.message || 'Failed to serve meal' };
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Failed to serve meal' 
+      };
     } finally {
       set({ isLoading: false });
     }

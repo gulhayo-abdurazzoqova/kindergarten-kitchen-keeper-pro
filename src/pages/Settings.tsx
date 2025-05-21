@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,18 +27,16 @@ const Settings = () => {
   const { data: settingsData, isLoading: isLoadingSettings } = useQuery({
     queryKey: ['settings'],
     queryFn: () => api.settings.get(),
-    onSuccess: (data) => {
-      if (data.settings) {
-        setLowStockThreshold(data.settings.lowStockThreshold || 10);
-        setEnableNotifications(data.settings.enableNotifications !== false);
-        setEnableRealTimeUpdates(data.settings.enableRealTimeUpdates !== false);
-      }
-    },
-    onError: (error) => {
-      console.error('Failed to load settings:', error);
-      toast.error('Failed to load settings. Using default values.');
-    }
   });
+
+  // Update state when settings data is loaded
+  useEffect(() => {
+    if (settingsData?.settings) {
+      setLowStockThreshold(settingsData.settings.lowStockThreshold || 10);
+      setEnableNotifications(settingsData.settings.enableNotifications !== false);
+      setEnableRealTimeUpdates(settingsData.settings.enableRealTimeUpdates !== false);
+    }
+  }, [settingsData]);
   
   // Save settings mutation
   const saveSettingsMutation = useMutation({
