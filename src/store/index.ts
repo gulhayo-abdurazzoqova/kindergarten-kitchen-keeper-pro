@@ -12,11 +12,8 @@ import {
   sampleAlerts, 
   sampleUsers 
 } from '../utils/data';
-import { 
-  calculateIngredientsNeeded, 
-  deductIngredientsFromInventory,
-  hasEnoughIngredients 
-} from '../utils/calculations';
+import { api } from '../api/client';
+import { toast } from '@/components/ui/sonner';
 
 interface KitchenState {
   // Data
@@ -27,18 +24,21 @@ interface KitchenState {
   users: User[];
   currentUser: User | null;
   
+  // API Status
+  isLoading: boolean;
+  
   // Ingredient actions
-  addIngredient: (ingredient: Omit<Ingredient, 'id'>) => void;
-  updateIngredient: (id: string, updates: Partial<Ingredient>) => void;
-  deleteIngredient: (id: string) => void;
+  addIngredient: (ingredient: Omit<Ingredient, 'id'>) => Promise<void>;
+  updateIngredient: (id: string, updates: Partial<Ingredient>) => Promise<void>;
+  deleteIngredient: (id: string) => Promise<void>;
   
   // Meal actions
-  addMeal: (meal: Omit<Meal, 'id'>) => void;
-  updateMeal: (id: string, updates: Partial<Meal>) => void;
-  deleteMeal: (id: string) => void;
+  addMeal: (meal: Omit<Meal, 'id'>) => Promise<void>;
+  updateMeal: (id: string, updates: Partial<Meal>) => Promise<void>;
+  deleteMeal: (id: string) => Promise<void>;
   
   // Serving actions
-  serveMeal: (mealId: string, portions: number) => { success: boolean; message: string };
+  serveMeal: (mealId: string, portions: number) => Promise<{ success: boolean; message: string }>;
   
   // Alert actions
   markAlertAsRead: (id: string) => void;
@@ -47,6 +47,10 @@ interface KitchenState {
   // User actions
   login: (userId: string) => boolean;
   logout: () => void;
+  
+  // Data loading actions
+  fetchIngredients: () => Promise<void>;
+  fetchMeals: () => Promise<void>;
 }
 
 // Helper for generating IDs
@@ -61,120 +65,170 @@ export const useKitchenStore = create<KitchenState>((set, get) => ({
   alerts: sampleAlerts,
   users: sampleUsers,
   currentUser: sampleUsers[0], // Default to admin for demo
+  isLoading: false,
 
-  addIngredient: (ingredient) => {
-    const newIngredient = {
-      ...ingredient,
-      id: generateId()
-    };
-    set((state) => ({
-      ingredients: [...state.ingredients, newIngredient]
-    }));
-  },
-  
-  updateIngredient: (id, updates) => {
-    set((state) => ({
-      ingredients: state.ingredients.map((ingredient) => 
-        ingredient.id === id ? { ...ingredient, ...updates } : ingredient
-      )
-    }));
-  },
-  
-  deleteIngredient: (id) => {
-    set((state) => ({
-      ingredients: state.ingredients.filter((ingredient) => ingredient.id !== id)
-    }));
-  },
-  
-  addMeal: (meal) => {
-    const newMeal = {
-      ...meal,
-      id: generateId()
-    };
-    set((state) => ({
-      meals: [...state.meals, newMeal]
-    }));
-  },
-  
-  updateMeal: (id, updates) => {
-    set((state) => ({
-      meals: state.meals.map((meal) => 
-        meal.id === id ? { ...meal, ...updates } : meal
-      )
-    }));
-  },
-  
-  deleteMeal: (id) => {
-    set((state) => ({
-      meals: state.meals.filter((meal) => meal.id !== id)
-    }));
-  },
-  
-  serveMeal: (mealId, portions) => {
-    const state = get();
-    const meal = state.meals.find(m => m.id === mealId);
-    
-    if (!meal) {
-      return { success: false, message: "Meal not found" };
+  fetchIngredients: async () => {
+    try {
+      set({ isLoading: true });
+      const response = await api.ingredients.getAll();
+      if (response.ingredients) {
+        set({ ingredients: response.ingredients });
+      }
+    } catch (error) {
+      console.error('Failed to fetch ingredients:', error);
+      toast.error('Failed to fetch ingredients');
+    } finally {
+      set({ isLoading: false });
     }
-    
-    if (!hasEnoughIngredients(meal, state.ingredients, portions)) {
-      // Create a low stock alert
-      const newAlert: Omit<Alert, 'id'> = {
-        type: 'low_stock',
-        message: `Not enough ingredients to serve ${portions} portions of ${meal.name}`,
-        date: new Date().toISOString(),
-        isRead: false
-      };
-      state.addAlert(newAlert);
-      
-      return { success: false, message: "Not enough ingredients" };
+  },
+
+  fetchMeals: async () => {
+    try {
+      set({ isLoading: true });
+      const response = await api.meals.getAll();
+      if (response.meals) {
+        set({ meals: response.meals });
+      }
+    } catch (error) {
+      console.error('Failed to fetch meals:', error);
+      toast.error('Failed to fetch meals');
+    } finally {
+      set({ isLoading: false });
     }
-    
-    // Calculate ingredients needed
-    const ingredientsNeeded = calculateIngredientsNeeded(meal, portions);
-    
-    // Deduct ingredients from inventory
-    const updatedIngredients = deductIngredientsFromInventory(
-      state.ingredients, 
-      ingredientsNeeded
-    );
-    
-    // Create serving record
-    const newServingRecord: ServingRecord = {
-      id: generateId(),
-      mealId: meal.id,
-      servingDate: new Date().toISOString(),
-      portions,
-      userId: state.currentUser?.id || 'unknown'
-    };
-    
-    set({
-      ingredients: updatedIngredients,
-      servingRecords: [...state.servingRecords, newServingRecord]
-    });
-    
-    // Check for low stock after serving
-    const lowStockIngredients = updatedIngredients.filter(
-      ing => ing.quantity < ing.minimumQuantity
-    );
-    
-    if (lowStockIngredients.length > 0) {
-      lowStockIngredients.forEach(ing => {
-        const newAlert: Omit<Alert, 'id'> = {
-          type: 'low_stock',
-          message: `${ing.name} is below minimum quantity`,
-          date: new Date().toISOString(),
-          isRead: false
-        };
-        state.addAlert(newAlert);
+  },
+  
+  addIngredient: async (ingredient) => {
+    try {
+      set({ isLoading: true });
+      const response = await api.ingredients.create(ingredient);
+      if (response.ingredient) {
+        set((state) => ({
+          ingredients: [...state.ingredients, response.ingredient]
+        }));
+        toast.success('Ingredient added successfully');
+      }
+    } catch (error) {
+      console.error('Failed to add ingredient:', error);
+      toast.error('Failed to add ingredient');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  
+  updateIngredient: async (id, updates) => {
+    try {
+      set({ isLoading: true });
+      const response = await api.ingredients.update(id, updates);
+      if (response.ingredient) {
+        set((state) => ({
+          ingredients: state.ingredients.map((ingredient) => 
+            ingredient.id === id ? { ...ingredient, ...response.ingredient } : ingredient
+          )
+        }));
+        toast.success('Ingredient updated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to update ingredient:', error);
+      toast.error('Failed to update ingredient');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  
+  deleteIngredient: async (id) => {
+    try {
+      set({ isLoading: true });
+      await api.ingredients.delete(id);
+      set((state) => ({
+        ingredients: state.ingredients.filter((ingredient) => ingredient.id !== id)
+      }));
+      toast.success('Ingredient deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete ingredient:', error);
+      toast.error('Failed to delete ingredient');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  
+  addMeal: async (meal) => {
+    try {
+      set({ isLoading: true });
+      const response = await api.meals.create(meal);
+      if (response.meal) {
+        set((state) => ({
+          meals: [...state.meals, response.meal]
+        }));
+        toast.success('Meal added successfully');
+      }
+    } catch (error) {
+      console.error('Failed to add meal:', error);
+      toast.error('Failed to add meal');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  
+  updateMeal: async (id, updates) => {
+    try {
+      set({ isLoading: true });
+      const response = await api.meals.update(id, updates);
+      if (response.meal) {
+        set((state) => ({
+          meals: state.meals.map((meal) => 
+            meal.id === id ? { ...meal, ...response.meal } : meal
+          )
+        }));
+        toast.success('Meal updated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to update meal:', error);
+      toast.error('Failed to update meal');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  
+  deleteMeal: async (id) => {
+    try {
+      set({ isLoading: true });
+      await api.meals.delete(id);
+      set((state) => ({
+        meals: state.meals.filter((meal) => meal.id !== id)
+      }));
+      toast.success('Meal deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete meal:', error);
+      toast.error('Failed to delete meal');
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  
+  serveMeal: async (mealId, portions) => {
+    try {
+      set({ isLoading: true });
+      const response = await api.serve.serveMeal({
+        mealId,
+        portions,
+        userId: get().currentUser?.id || 'unknown'
       });
+      
+      if (response.success) {
+        // Refresh ingredients after serving
+        await get().fetchIngredients();
+        toast.success(response.message || 'Meal served successfully');
+        return { success: true, message: response.message || 'Meal served successfully' };
+      }
+      
+      return { success: false, message: 'Failed to serve meal' };
+    } catch (error) {
+      console.error('Failed to serve meal:', error);
+      toast.error(error.message || 'Failed to serve meal');
+      return { success: false, message: error.message || 'Failed to serve meal' };
+    } finally {
+      set({ isLoading: false });
     }
-    
-    return { 
-      success: true, 
-      message: `Successfully served ${portions} portions of ${meal.name}` 
-    };
   },
   
   markAlertAsRead: (id) => {

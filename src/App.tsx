@@ -14,8 +14,16 @@ import MealList from "./components/meals/MealList";
 import ServeMeal from "./components/serving/ServeMeal";
 import Settings from "./pages/Settings";
 import { useKitchenStore } from "./store";
+import { supabase } from "./api/client";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Auth protection wrapper component
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
