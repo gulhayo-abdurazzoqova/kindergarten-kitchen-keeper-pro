@@ -12,6 +12,7 @@ import ReportsDashboard from "./components/reports/ReportsDashboard";
 import IngredientList from "./components/ingredients/IngredientList";
 import MealList from "./components/meals/MealList";
 import ServeMeal from "./components/serving/ServeMeal";
+import Settings from "./pages/Settings";
 import { useKitchenStore } from "./store";
 
 const queryClient = new QueryClient();
@@ -98,6 +99,15 @@ const App = () => (
               element={
                 <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
                   <ReportsDashboard />
+                </RoleProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="settings" 
+              element={
+                <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Settings />
                 </RoleProtectedRoute>
               } 
             />
