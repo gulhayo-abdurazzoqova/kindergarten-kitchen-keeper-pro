@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,20 +40,12 @@ const ServeMeal: React.FC = () => {
 
   const handleServeMeal = async () => {
     if (!selectedMealId) {
-      toast({
-        title: 'Error',
-        description: 'Please select a meal first',
-        variant: 'destructive'
-      });
+      toast.error('Please select a meal first');
       return;
     }
 
     if (portions < 1) {
-      toast({
-        title: 'Error',
-        description: 'Portions must be at least 1',
-        variant: 'destructive'
-      });
+      toast.error('Portions must be at least 1');
       return;
     }
 
@@ -61,26 +54,15 @@ const ServeMeal: React.FC = () => {
       const result = await serveMeal(selectedMealId, portions);
       
       if (result.success) {
-        toast({
-          title: 'Success',
-          description: result.message
-        });
+        toast.success(result.message);
         // Reset form after successful serving
         setSelectedMealId('');
         setPortions(1);
       } else {
-        toast({
-          title: 'Error',
-          description: result.message,
-          variant: 'destructive'
-        });
+        toast.error(result.message);
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to serve meal',
-        variant: 'destructive'
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to serve meal');
     } finally {
       setIsSubmitting(false);
     }
