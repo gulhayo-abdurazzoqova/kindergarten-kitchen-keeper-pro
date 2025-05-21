@@ -2,9 +2,22 @@
 import { createClient } from '@supabase/supabase-js';
 import { toast } from '@/components/ui/sonner';
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Default values for local development (should be replaced with actual values in production)
+const DEFAULT_SUPABASE_URL = 'https://your-supabase-project.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'your-public-anon-key';
+
+// Initialize Supabase client with proper fallbacks
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
+
+// Check if the URL is valid and warn if using defaults
+if (!import.meta.env.VITE_SUPABASE_URL) {
+  console.warn('No Supabase URL found in environment variables. Using default URL for development.');
+}
+
+if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  console.warn('No Supabase Anon Key found in environment variables. Using default key for development.');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
